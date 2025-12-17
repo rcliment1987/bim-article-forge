@@ -42,17 +42,21 @@ RÈGLE D'OR: "Si un enfant de 12 ans ne comprend pas l'intérêt business, c'est
 STYLE: Cartésien mais accessible. Utilise des analogies si nécessaire.`;
 
 const templatePrompts: Record<string, string> = {
-  standard: `Tu dois générer un article structuré en JSON avec les champs suivants:
-- title: Un titre accrocheur qui oppose une douleur (Problème) à une solution (Norme/Standard)
-- description: Description SEO de 150 caractères max
-- slug: URL format court, minuscules, tirets
-- introduction: Le Hook - constat douloureux du terrain (un problème réel identifié)
-- problem: Le Problème - pourquoi la méthode "old school" échoue (exemples concrets)
-- solution: La Solution Normative - la réponse des normes ISO 19650 ou CRTI-B (citer les chapitres exacts)
-- bimAngle: L'Angle Pratique - comment appliquer concrètement cette norme au Benelux
-- conclusion: Conclusion - récapitulatif et encouragement à approfondir le sujet
-- technicalSources: Sources exactes utilisées (normes, chapitres, figures, tableaux)
-- altText: Texte alternatif image (max 125 caractères)`,
+  standard: `Tu dois générer un article structuré en JSON avec les champs suivants. IMPORTANT: Chaque valeur doit être une CHAÎNE DE TEXTE simple, PAS un objet ou un tableau.
+- title: (string) Un titre accrocheur qui oppose une douleur (Problème) à une solution (Norme/Standard)
+- description: (string) Description SEO de 150 caractères max
+- slug: (string) URL format court, minuscules, tirets, commençant par /
+- introduction: (string) Le Hook - constat douloureux du terrain (un problème réel identifié)
+- problem: (string) Le Problème - pourquoi la méthode "old school" échoue (exemples concrets)
+- solution: (string) La Solution Normative - la réponse des normes ISO 19650 ou CRTI-B (citer les chapitres exacts)
+- bimAngle: (string) L'Angle Pratique - comment appliquer concrètement cette norme au Benelux
+- conclusion: (string) Conclusion - récapitulatif et encouragement à approfondir le sujet
+- technicalSources: (string) Sources exactes utilisées (normes, chapitres, figures, tableaux)
+- altText: (string) Texte alternatif image (max 125 caractères)
+
+EXEMPLE DE FORMAT ATTENDU:
+{"title": "Mon titre ici", "description": "Ma description", ...}
+PAS: {"title": {"text": "...", "example": "..."}, ...}`,
 
   tutorial: `Tu dois générer un article TUTORIEL en JSON. Structure "Comment faire X en Y étapes":
 - title: "Comment [action] : Guide pratique en [N] étapes" ou "X étapes pour [résultat]"
