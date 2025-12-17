@@ -28,7 +28,7 @@ POSITIONNEMENT BIMSMARTER:
 - Secteur : AEC (Architecture, Engineering, Construction)
 - Niche géographique : Luxembourg & Belgique (Focus Benelux)
 - Cible : Directeurs Techniques, BIM Managers et Chefs de services dans les Bureaux d'Études Techniques
-- Mission : Vulgariser le BIM et les normes pour permettre aux professionnels de s'auto-former
+- Mission : Vulgariser le BIM pour permettre aux professionnels de s'auto-former
 
 PAIN POINTS À TRAITER:
 1. Le Paradoxe de Productivité : Le BIM a augmenté la densité de données, transformant les ingénieurs en "secrétaires de données"
@@ -39,83 +39,115 @@ PAIN POINTS À TRAITER:
 6. Coordination : Tri manuel des milliers de "Clashes" (conflits géométriques)
 
 RÈGLE D'OR: "Si un enfant de 12 ans ne comprend pas l'intérêt business, c'est que c'est trop compliqué."
-STYLE: Cartésien mais accessible. Utilise des analogies si nécessaire.`;
+
+🔥 STYLE RÉDACTIONNEL - ARTICLES PERCUTANTS:
+
+📏 FORMAT COURT & IMPACTANT:
+- Introduction : 2-3 phrases MAXIMUM, droit au but
+- Chaque section : 80-120 mots max (PAS PLUS !)
+- Phrases courtes : 15 mots maximum par phrase
+- Un paragraphe = une seule idée
+
+🎯 ACCROCHES CHOC (OBLIGATOIRE):
+- TOUJOURS commencer par un chiffre frappant OU une question provocante
+- Exemples : "80% des projets BIM dépassent leur budget." | "Et si votre BEP était obsolète depuis 6 mois ?"
+- JAMAIS de contexte long en intro
+
+💡 STYLE "SCROLLABLE":
+- Utiliser des listes à puces (3-5 points max par liste)
+- Mettre en **gras** les mots-clés importants
+- Structure pyramide inversée : l'essentiel EN PREMIER
+- Chaque paragraphe doit pouvoir se lire seul
+
+🚫 INTERDITS:
+- Les longues introductions contextuelles
+- Les phrases > 20 mots
+- Le jargon non expliqué immédiatement
+- Les transitions molles ("Il convient de noter...", "Il est important de...", "Dans le contexte actuel...")
+- Les répétitions et redondances
+- Les paragraphes > 4 lignes
+
+✅ PRIVILÉGIER:
+- Verbes d'action directs
+- Exemples ultra-concrets (1 phrase max)
+- Analogies simples ("Le BEP = la recette de cuisine du projet")
+- Chiffres et statistiques percutants
+- Questions rhétoriques qui font réfléchir`;
 
 const templatePrompts: Record<string, string> = {
-  standard: `Tu dois générer un article structuré en JSON avec les champs suivants. IMPORTANT: Chaque valeur doit être une CHAÎNE DE TEXTE simple, PAS un objet ou un tableau.
-- title: (string) Un titre accrocheur qui oppose une douleur (Problème) à une solution (Norme/Standard)
+  standard: `Tu dois générer un article COURT et PERCUTANT en JSON avec les champs suivants:
+- title: (string) Titre accrocheur avec chiffre ou question (max 60 caractères)
 - description: (string) Description SEO de 150 caractères max
 - slug: (string) URL format court, minuscules, tirets, commençant par /
-- introduction: (string) Le Hook - constat douloureux du terrain (un problème réel identifié)
-- problem: (string) Le Problème - pourquoi la méthode "old school" échoue (exemples concrets)
-- solution: (string) La Solution Normative - la réponse des normes ISO 19650 ou CRTI-B (citer les chapitres exacts)
-- bimAngle: (string) L'Angle Pratique - comment appliquer concrètement cette norme au Benelux
-- conclusion: (string) Conclusion - récapitulatif et encouragement à approfondir le sujet
-- technicalSources: (string) Sources exactes utilisées (normes, chapitres, figures, tableaux)
+- introduction: (string) 2-3 phrases max. COMMENCER par un chiffre choc ou une question provocante
+- problem: (string) 80-100 mots max. Phrases courtes. Utiliser des bullet points
+- solution: (string) 80-100 mots max. Citer UNE norme précise avec chapitre. Format scannable
+- bimAngle: (string) 80-100 mots max. Exemple concret Benelux. Actionnable immédiatement
+- conclusion: (string) 2-3 phrases. Un takeaway clair + question d'engagement
+- technicalSources: (string) Sources exactes (norme + chapitre)
 - altText: (string) Texte alternatif image (max 125 caractères)
 
 EXEMPLE DE FORMAT ATTENDU:
-{"title": "Mon titre ici", "description": "Ma description", ...}
-PAS: {"title": {"text": "...", "example": "..."}, ...}`,
+{"title": "Mon titre ici", "description": "Ma description", ...}`,
 
-  tutorial: `Tu dois générer un article TUTORIEL en JSON. Structure "Comment faire X en Y étapes":
-- title: "Comment [action] : Guide pratique en [N] étapes" ou "X étapes pour [résultat]"
-- description: Description SEO de 150 caractères max, promettant un guide actionnable
+  tutorial: `Tu dois générer un article TUTORIEL COURT en JSON:
+- title: "Comment [action] en [N] étapes" (max 60 caractères)
+- description: Description SEO de 150 caractères max
 - slug: URL format court avec "guide" ou "comment"
-- introduction: Pourquoi ce tutoriel est nécessaire, quel problème il résout
-- problem: Ce qui se passe quand on n'applique pas cette méthode (échecs typiques)
-- solution: Les étapes numérotées avec explications claires (Étape 1:, Étape 2:, etc.)
-- bimAngle: Tips et astuces spécifiques au Benelux pour chaque étape
-- conclusion: Récapitulatif des étapes et encouragement à pratiquer
-- technicalSources: Références normatives pour chaque étape si applicable
+- introduction: 2 phrases max. Problème + promesse de solution rapide
+- problem: 60-80 mots. Ce qui échoue quand on ne suit pas la méthode
+- solution: Les étapes NUMÉROTÉES (max 5 étapes). 1 phrase par étape
+- bimAngle: Tips spécifiques Benelux. 60-80 mots max
+- conclusion: 2 phrases. Récap + question d'engagement
+- technicalSources: Références normatives
 - altText: Texte alternatif image (max 125 caractères)`,
 
-  comparison: `Tu dois générer un article COMPARATIF en JSON. Structure "X vs Y":
-- title: "[Option A] vs [Option B] : Lequel choisir en [contexte]?"
-- description: Description SEO de 150 caractères max, promettant une comparaison objective
-- slug: URL format court avec "vs" ou "comparatif"
-- introduction: Pourquoi cette comparaison est pertinente, contexte du choix
-- problem: Les critères de comparaison clés (coût, temps, qualité, adoption, etc.)
-- solution: Tableau comparatif détaillé avec avantages/inconvénients de chaque option
-- bimAngle: Recommandation pratique selon le contexte Benelux (Luxembourg vs Belgique)
-- conclusion: Verdict clair avec cas d'usage recommandés pour chaque option
-- technicalSources: Sources et références pour les données comparatives
+  comparison: `Tu dois générer un article COMPARATIF COURT en JSON:
+- title: "[A] vs [B] : Lequel choisir ?" (max 60 caractères)
+- description: Description SEO de 150 caractères max
+- slug: URL format court avec "vs"
+- introduction: 2 phrases. Pourquoi ce choix est crucial
+- problem: Tableau mental en bullet points : critères clés (3-4 max)
+- solution: Avantages/inconvénients en bullet points. Court et direct
+- bimAngle: VERDICT clair selon contexte Luxembourg ou Belgique
+- conclusion: Recommandation en 1 phrase + question d'engagement
+- technicalSources: Sources comparatives
 - altText: Texte alternatif image (max 125 caractères)`,
 
-  mistakes: `Tu dois générer un article "ERREURS COURANTES" en JSON. Structure "X erreurs qui...":
-- title: "[N] erreurs qui [conséquence négative] (et comment les éviter)"
-- description: Description SEO de 150 caractères max, promettant d'éviter des pièges
-- slug: URL format court avec "erreurs" ou "pieges"
-- introduction: L'impact de ces erreurs sur les projets BIM (chiffres si possible)
-- problem: Liste des erreurs courantes avec exemples concrets du terrain
-- solution: Pour chaque erreur : la bonne pratique à adopter selon les normes
-- bimAngle: Erreurs spécifiques au contexte Benelux et solutions locales
-- conclusion: Checklist récapitulative pour vérifier qu'on évite ces erreurs
-- technicalSources: Références normatives pour les bonnes pratiques
+  mistakes: `Tu dois générer un article "ERREURS" COURT en JSON:
+- title: "[N] erreurs qui [conséquence]" (max 60 caractères)
+- description: Description SEO de 150 caractères max
+- slug: URL avec "erreurs" ou "pieges"
+- introduction: 2 phrases. Chiffre d'impact + accroche
+- problem: Liste NUMÉROTÉE des erreurs (max 5). 1-2 phrases par erreur
+- solution: Pour chaque erreur : la correction en 1 phrase
+- bimAngle: Erreur spécifique Benelux + solution locale
+- conclusion: 2 phrases. Checklist mentale + question
+- technicalSources: Références normatives
 - altText: Texte alternatif image (max 125 caractères)`,
 
-  casestudy: `Tu dois générer un article "ÉTUDE DE CAS" en JSON. Structure storytelling:
-- title: "Comment [type d'entreprise] a résolu [problème] avec [solution]"
-- description: Description SEO de 150 caractères max, promettant un retour d'expérience
-- slug: URL format court avec "etude-cas" ou nom anonymisé
-- introduction: Présentation du contexte (type de projet, taille, enjeux)
-- problem: La situation initiale problématique (données, timeline, défis)
-- solution: La démarche adoptée étape par étape, les outils/normes utilisés
-- bimAngle: Résultats obtenus (gains de temps, réduction erreurs, ROI)
-- conclusion: Leçons clés à retenir et comment les appliquer à son propre contexte
-- technicalSources: Standards et méthodologies référencés dans l'étude
+  casestudy: `Tu dois générer une ÉTUDE DE CAS COURTE en JSON:
+- title: "Comment [entreprise] a résolu [problème]" (max 60 caractères)
+- description: Description SEO de 150 caractères max
+- slug: URL avec "etude-cas"
+- introduction: 2 phrases. Le défi + le résultat chiffré
+- problem: 60-80 mots. Situation initiale problématique
+- solution: 80-100 mots. Les 3 actions clés prises
+- bimAngle: Résultats chiffrés : temps gagné, erreurs réduites, ROI
+- conclusion: Leçon à retenir en 1 phrase + question
+- technicalSources: Standards utilisés
 - altText: Texte alternatif image (max 125 caractères)`,
 
-  norm: `Tu dois générer un article "DÉCRYPTAGE NORME" en JSON. Vulgarisation d'un standard:
-- title: "[Nom de la norme] expliqué simplement : Ce que ça change pour vos projets"
-- description: Description SEO de 150 caractères max, promettant une vulgarisation
-- slug: URL format court avec le nom de la norme
-- introduction: Pourquoi cette norme existe, quel problème elle adresse
-- problem: Ce qui se passait AVANT cette norme (chaos, risques, inefficacités)
-- solution: Les concepts clés de la norme expliqués avec des analogies simples
-- bimAngle: Comment appliquer cette norme concrètement au Benelux (GID, DIU...)
-- conclusion: Les 3 points essentiels à retenir + ressources pour aller plus loin
-- technicalSources: Chapitres précis de la norme avec numéros et titres
+  norm: `Tu dois générer un DÉCRYPTAGE NORME COURT en JSON:
+- title: "[Norme] expliquée simplement" (max 60 caractères)
+- description: Description SEO de 150 caractères max
+- slug: URL avec nom de la norme
+- introduction: 2 phrases. Pourquoi cette norme vous concerne
+- problem: 60-80 mots. L'AVANT (chaos sans la norme)
+- solution: 3-4 concepts clés MAX. 1 phrase par concept. Analogies simples
+- bimAngle: Application Benelux : GID ou DIU selon contexte
+- conclusion: Les 3 points à retenir + question
+- technicalSources: Chapitres précis de la norme
 - altText: Texte alternatif image (max 125 caractères)`
 };
 
@@ -171,15 +203,16 @@ Utilise ces informations pour enrichir l'article avec des données récentes et 
           { role: "system", content: systemPrompt },
           { 
             role: "user", 
-            content: `Génère un article complet sur le sujet suivant: "${subject}"${contextInfo}
-            
-Réponds UNIQUEMENT avec un objet JSON valide contenant les champs: title, description, slug, introduction, problem, solution, bimAngle, conclusion, technicalSources, altText.
+            content: `Génère un article COURT et PERCUTANT sur: "${subject}"${contextInfo}
 
-Le slug doit commencer par "/" et être en minuscules avec des tirets.
-La description ne doit pas dépasser 150 caractères.
-L'altText ne doit pas dépasser 125 caractères.
+RAPPEL CRITIQUE:
+- Introduction : 2-3 phrases MAX
+- Chaque section : 80-120 mots MAX
+- Phrases courtes (15 mots max)
+- COMMENCE par un chiffre ou une question choc
+- Format scannable avec bullet points
 
-Assure-toi que chaque section soit substantielle et pertinente pour le secteur AEC au Benelux.`
+Réponds UNIQUEMENT avec un objet JSON valide.`
           }
         ],
         temperature: 0.7,

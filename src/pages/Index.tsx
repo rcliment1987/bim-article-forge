@@ -65,6 +65,11 @@ const Index = () => {
     toast.success("Titre appliqué !");
   };
 
+  const handleArticleImproved = (improvedData: ArticleData) => {
+    setArticleData(improvedData);
+    toast.success("Article corrigé avec succès !");
+  };
+
   const handleGenerateArticle = async () => {
     if (!articleData.subject.trim()) {
       toast.error("Veuillez entrer un sujet d'article");
@@ -194,7 +199,10 @@ const Index = () => {
 
             {/* Right Column - Analysis & Generation */}
             <div className="lg:col-span-4 space-y-4">
-              <ViralityScore articleData={articleData} />
+              <ViralityScore 
+                articleData={articleData} 
+                onArticleImproved={handleArticleImproved}
+              />
               <ImageGenerator subject={articleData.subject} />
               <LinkedInGenerator articleData={articleData} />
             </div>

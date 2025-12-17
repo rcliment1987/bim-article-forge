@@ -11,11 +11,11 @@ serve(async (req) => {
   }
 
   try {
-    const { subject, type = "cover" } = await req.json();
+    const { slideNumber, title, content, totalSlides } = await req.json();
 
-    if (!subject) {
+    if (!title || !content) {
       return new Response(
-        JSON.stringify({ error: "Le sujet est requis" }),
+        JSON.stringify({ error: "Titre et contenu requis" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -29,30 +29,27 @@ serve(async (req) => {
       );
     }
 
-    console.log("Generating image for:", subject, "type:", type);
+    console.log("Generating carousel slide:", slideNumber, title);
 
-    const prompts: Record<string, string> = {
-      cover: `Create a professional, modern cover image for a BIM (Building Information Modeling) article about: "${subject}".
-Style: Clean, corporate, tech-forward with deep blue (#1e3a5f) and cyan (#0891b2) color scheme.
-Include: Abstract geometric 3D building wireframes, digital data flow visualization, holographic elements.
-Include a short, impactful FRENCH title text related to the subject with PERFECT SPELLING and grammar.
-Text must be: Bold, highly readable, professionally typeset with good contrast.
-Aspect ratio: 16:9 landscape format for blog header.`,
-      
-      infographic: `Create a clean infographic visual about: "${subject}" for BIM/construction professionals.
-Style: Minimalist with cyan (#0891b2) and blue accents on dark background (#1e3a5f).
-Show: Abstract representation with simple icons, geometric shapes, and flow diagrams.
-Include clear FRENCH labels and key terms with PERFECT SPELLING.
-Text: Professional, legible, correctly spelled French.
-Format: Square 1:1 ratio.`,
-      
-      linkedin: `Create an eye-catching LinkedIn post thumbnail about: "${subject}" for construction/BIM professionals.
-Style: Modern, professional, attention-grabbing with cyan/blue gradient.
-Include: Abstract construction/digital 3D elements, professional atmosphere.
-Include an attention-grabbing FRENCH headline with PERFECT SPELLING.
-Text: Bold, professional, grammatically correct French, high contrast for readability.
-Format: Square 1:1 ratio.`
-    };
+    const prompt = `Create a professional LinkedIn carousel slide image for BIM/construction professionals.
+
+SLIDE DETAILS:
+- Slide number: ${slideNumber}/${totalSlides}
+- Title: "${title}"
+- Content: "${content}"
+
+DESIGN REQUIREMENTS:
+- Background: Dark gradient from #1e3a5f to #0f172a
+- Accent color: Cyan #0891b2
+- Show slide number "${slideNumber}" in top-right corner in a cyan circle
+- Display the title "${title}" in large, bold white text (centered, top third)
+- Display the content below in smaller white text (centered, readable)
+- Add subtle geometric/tech design elements (lines, dots, abstract shapes)
+- Professional, modern, tech-forward aesthetic
+- All text in FRENCH with PERFECT SPELLING
+- Text must be highly readable and well-spaced
+- Format: Square 1:1 (1080x1080 for LinkedIn)
+- Include "BIMsmarter" watermark in bottom-right corner (small, subtle)`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -65,7 +62,7 @@ Format: Square 1:1 ratio.`
         messages: [
           {
             role: "user",
-            content: prompts[type] || prompts.cover
+            content: prompt
           }
         ],
         modalities: ["image", "text"]
@@ -100,15 +97,15 @@ Format: Square 1:1 ratio.`
       );
     }
 
-    console.log("Image generated successfully");
+    console.log("Carousel slide generated successfully");
 
     return new Response(
-      JSON.stringify({ success: true, imageUrl, type }),
+      JSON.stringify({ success: true, imageUrl, slideNumber }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error("Error generating image:", error);
+    console.error("Error generating carousel slide:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Erreur inconnue" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
