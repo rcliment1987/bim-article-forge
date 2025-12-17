@@ -1,1 +1,7 @@
 project_id = "ymbgmyfhjvemiflfhtiw"
+
+[functions.generate-article]
+verify_jwt = false
+
+[functions.suggest-topics]
+verify_jwt = false

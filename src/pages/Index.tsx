@@ -3,6 +3,9 @@ import Header from "@/components/Header";
 import ArticleForm, { ArticleData } from "@/components/ArticleForm";
 import ArticlePreview from "@/components/ArticlePreview";
 import ExportActions from "@/components/ExportActions";
+import TopicSuggestions from "@/components/TopicSuggestions";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const initialArticleData: ArticleData = {
   subject: "",
@@ -20,6 +23,7 @@ const initialArticleData: ArticleData = {
 
 const Index = () => {
   const [isDark, setIsDark] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [articleData, setArticleData] = useState<ArticleData>(() => {
     const saved = localStorage.getItem("bimsmarter-article-draft");
     return saved ? JSON.parse(saved) : initialArticleData;
@@ -49,6 +53,59 @@ const Index = () => {
     localStorage.removeItem("bimsmarter-article-draft");
   };
 
+  const handleSelectTopic = (topic: string) => {
+    setArticleData(prev => ({ ...prev, subject: topic }));
+    toast.success("Sujet sélectionné ! Cliquez sur 'Générer l'ébauche' pour créer l'article.");
+  };
+
+  const handleGenerateArticle = async () => {
+    if (!articleData.subject.trim()) {
+      toast.error("Veuillez entrer un sujet d'article");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-article", {
+        body: { subject: articleData.subject },
+      });
+
+      if (error) {
+        console.error("Error generating article:", error);
+        toast.error("Erreur lors de la génération de l'article");
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      if (data?.success && data.article) {
+        const article = data.article;
+        setArticleData(prev => ({
+          ...prev,
+          title: article.title || prev.title,
+          description: article.description || prev.description,
+          slug: article.slug || prev.slug,
+          introduction: article.introduction || prev.introduction,
+          problem: article.problem || prev.problem,
+          solution: article.solution || prev.solution,
+          bimAngle: article.bimAngle || prev.bimAngle,
+          conclusion: article.conclusion || prev.conclusion,
+          technicalSources: article.technicalSources || prev.technicalSources,
+          altText: article.altText || prev.altText,
+        }));
+        toast.success("Article généré avec succès ! Vous pouvez maintenant l'éditer.");
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      toast.error("Erreur de connexion au service IA");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-bimsmarter">
       <Header isDark={isDark} onToggleTheme={handleToggleTheme} />
@@ -69,18 +126,29 @@ const Index = () => {
           <ExportActions articleData={articleData} onReset={handleReset} />
 
           {/* Main Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-            {/* Form Column */}
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+            {/* Left Column - Topic Suggestions */}
+            <div className="lg:col-span-3">
+              <div className="lg:sticky lg:top-24">
+                <TopicSuggestions onSelectTopic={handleSelectTopic} />
+              </div>
+            </div>
+
+            {/* Middle Column - Form */}
+            <div className="lg:col-span-5">
               <ArticleForm 
                 articleData={articleData} 
-                onDataChange={setArticleData} 
+                onDataChange={setArticleData}
+                onGenerateArticle={handleGenerateArticle}
+                isGenerating={isGenerating}
               />
             </div>
 
-            {/* Preview Column */}
-            <div className="lg:sticky lg:top-24 lg:self-start">
-              <ArticlePreview articleData={articleData} />
+            {/* Right Column - Preview */}
+            <div className="lg:col-span-4">
+              <div className="lg:sticky lg:top-24">
+                <ArticlePreview articleData={articleData} />
+              </div>
             </div>
           </div>
         </div>
