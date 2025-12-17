@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Lightbulb, Loader2, RefreshCw, ArrowRight } from "lucide-react";
+import { Lightbulb, Loader2, RefreshCw, ArrowRight, ExternalLink, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -12,6 +12,7 @@ interface TopicSuggestion {
   angle: string;
   relevance: string;
   keywords: string[];
+  source?: string | null;
 }
 
 interface TopicSuggestionsProps {
@@ -22,6 +23,8 @@ const TopicSuggestions = ({ onSelectTopic }: TopicSuggestionsProps) => {
   const [suggestions, setSuggestions] = useState<TopicSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [hasRealNews, setHasRealNews] = useState(false);
+  const [sourcesCount, setSourcesCount] = useState(0);
 
   const fetchSuggestions = async () => {
     setIsLoading(true);
@@ -42,7 +45,13 @@ const TopicSuggestions = ({ onSelectTopic }: TopicSuggestionsProps) => {
       if (data?.success && data.suggestions) {
         setSuggestions(data.suggestions);
         setHasLoaded(true);
-        toast.success("Suggestions générées avec succès !");
+        setHasRealNews(data.hasRealNews || false);
+        setSourcesCount(data.sourcesUsed || 0);
+        toast.success(
+          data.hasRealNews 
+            ? `Suggestions générées à partir de ${data.sourcesUsed} sources web réelles !`
+            : "Suggestions générées avec succès !"
+        );
       }
     } catch (err) {
       console.error("Error:", err);
@@ -77,22 +86,30 @@ const TopicSuggestions = ({ onSelectTopic }: TopicSuggestionsProps) => {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          L'IA analyse l'actualité BIM au Benelux pour vous proposer des sujets pertinents
+          L'IA recherche l'actualité BIM au Benelux pour vous proposer des sujets pertinents
         </p>
+        {hasLoaded && hasRealNews && (
+          <div className="flex items-center gap-1.5 mt-2">
+            <Globe className="h-3 w-3 text-green-500" />
+            <span className="text-[10px] text-green-500 font-medium">
+              {sourcesCount} sources web analysées
+            </span>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {!hasLoaded && !isLoading ? (
           <div className="text-center py-6">
             <Lightbulb className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">
-              Cliquez sur "Générer" pour obtenir des suggestions de sujets d'articles
+              Cliquez sur "Générer" pour obtenir des suggestions basées sur l'actualité BIM réelle
             </p>
           </div>
         ) : isLoading ? (
           <div className="text-center py-6">
             <Loader2 className="h-10 w-10 text-primary animate-spin mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">
-              Analyse de l'actualité BIM en cours...
+              Recherche des actualités BIM et génération des suggestions...
             </p>
           </div>
         ) : (
@@ -128,6 +145,18 @@ const TopicSuggestions = ({ onSelectTopic }: TopicSuggestionsProps) => {
                         </Badge>
                       ))}
                     </div>
+                    {suggestion.source && (
+                      <a
+                        href={suggestion.source}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary transition-colors mt-1"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        <span className="truncate max-w-[200px]">{suggestion.source}</span>
+                      </a>
+                    )}
                   </CardContent>
                 </Card>
               ))}
