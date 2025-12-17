@@ -101,18 +101,24 @@ const Index = () => {
       }
       if (data?.success && data.article) {
         const article = data.article;
+        // Helper to ensure value is string (AI may return objects)
+        const ensureString = (val: unknown): string => {
+          if (typeof val === 'string') return val;
+          if (val && typeof val === 'object') return JSON.stringify(val, null, 2);
+          return '';
+        };
         setArticleData(prev => ({
           ...prev,
-          title: article.title || prev.title,
-          description: article.description || prev.description,
-          slug: article.slug || prev.slug,
-          introduction: article.introduction || prev.introduction,
-          problem: article.problem || prev.problem,
-          solution: article.solution || prev.solution,
-          bimAngle: article.bimAngle || prev.bimAngle,
-          conclusion: article.conclusion || prev.conclusion,
-          technicalSources: article.technicalSources || prev.technicalSources,
-          altText: article.altText || prev.altText,
+          title: ensureString(article.title) || prev.title,
+          description: ensureString(article.description) || prev.description,
+          slug: ensureString(article.slug) || prev.slug,
+          introduction: ensureString(article.introduction) || prev.introduction,
+          problem: ensureString(article.problem) || prev.problem,
+          solution: ensureString(article.solution) || prev.solution,
+          bimAngle: ensureString(article.bimAngle) || prev.bimAngle,
+          conclusion: ensureString(article.conclusion) || prev.conclusion,
+          technicalSources: ensureString(article.technicalSources) || prev.technicalSources,
+          altText: ensureString(article.altText) || prev.altText,
         }));
         toast.success("Article généré avec enrichissement contextuel !");
       }
