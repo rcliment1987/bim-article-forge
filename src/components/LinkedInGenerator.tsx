@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Linkedin, Copy, MessageSquare, Video, Layers } from "lucide-react";
+import { Loader2, Linkedin, Copy, MessageSquare, Video, Layers, Download, Image } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArticleData } from "./ArticleForm";
@@ -11,6 +11,7 @@ interface CarouselSlide {
   slide: number;
   title: string;
   content: string;
+  imageUrl?: string;
 }
 
 interface VideoScript {
@@ -34,6 +35,7 @@ interface LinkedInGeneratorProps {
 const LinkedInGenerator = ({ articleData }: LinkedInGeneratorProps) => {
   const [content, setContent] = useState<LinkedInContent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingSlides, setIsGeneratingSlides] = useState(false);
   const [activeTab, setActiveTab] = useState("short");
 
   const generateContent = async () => {
@@ -71,12 +73,75 @@ const LinkedInGenerator = ({ articleData }: LinkedInGeneratorProps) => {
     }
   };
 
+  const generateCarouselImages = async () => {
+    if (!content?.carousel?.length) {
+      toast.error("Générez d'abord le contenu LinkedIn");
+      return;
+    }
+
+    setIsGeneratingSlides(true);
+    const totalSlides = content.carousel.length;
+    const updatedCarousel = [...content.carousel];
+
+    try {
+      for (let i = 0; i < totalSlides; i++) {
+        const slide = content.carousel[i];
+        toast.info(`Génération slide ${slide.slide}/${totalSlides}...`);
+
+        const { data, error } = await supabase.functions.invoke("generate-carousel-slide", {
+          body: {
+            slideNumber: slide.slide,
+            title: slide.title,
+            content: slide.content,
+            totalSlides,
+          },
+        });
+
+        if (error || data?.error) {
+          console.error("Error generating slide:", error || data?.error);
+          toast.error(`Erreur slide ${slide.slide}`);
+          continue;
+        }
+
+        if (data?.success && data.imageUrl) {
+          updatedCarousel[i] = { ...slide, imageUrl: data.imageUrl };
+        }
+      }
+
+      setContent({ ...content, carousel: updatedCarousel });
+      toast.success("Slides générées !");
+    } catch (err) {
+      console.error("Error:", err);
+      toast.error("Erreur de connexion");
+    } finally {
+      setIsGeneratingSlides(false);
+    }
+  };
+
   const copyToClipboard = async (text: string, label: string) => {
     await navigator.clipboard.writeText(text);
     toast.success(`${label} copié !`);
   };
 
+  const downloadImage = (dataUrl: string, filename: string) => {
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = filename;
+    link.click();
+  };
+
+  const downloadAllSlides = () => {
+    if (!content?.carousel) return;
+    content.carousel.forEach((slide) => {
+      if (slide.imageUrl) {
+        downloadImage(slide.imageUrl, `slide-${slide.slide}.png`);
+      }
+    });
+    toast.success("Téléchargement des slides...");
+  };
+
   const hasContent = articleData.title || articleData.introduction;
+  const hasSlideImages = content?.carousel?.some((s) => s.imageUrl);
 
   return (
     <Card className="glass-panel border-primary/20">
@@ -169,33 +234,85 @@ const LinkedInGenerator = ({ articleData }: LinkedInGeneratorProps) => {
             </TabsContent>
 
             <TabsContent value="carousel" className="mt-0">
-              <div className="space-y-2">
-                <div className="flex justify-end">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
                   <Button
                     size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(
-                      content.carousel?.map(s => `Slide ${s.slide}: ${s.title}\n${s.content}`).join("\n\n") || "",
-                      "Script carousel"
-                    )}
+                    variant="outline"
+                    onClick={generateCarouselImages}
+                    disabled={isGeneratingSlides}
+                    className="border-primary/50"
                   >
-                    <Copy className="h-3 w-3 mr-1" />
-                    Copier tout
+                    {isGeneratingSlides ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Génération...
+                      </>
+                    ) : (
+                      <>
+                        <Image className="h-3 w-3 mr-1" />
+                        Générer les images
+                      </>
+                    )}
                   </Button>
+                  <div className="flex gap-1">
+                    {hasSlideImages && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={downloadAllSlides}
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        Télécharger
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(
+                        content.carousel?.map(s => `Slide ${s.slide}: ${s.title}\n${s.content}`).join("\n\n") || "",
+                        "Script carousel"
+                      )}
+                    >
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copier texte
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+                
+                <div className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto">
                   {content.carousel?.map((slide) => (
                     <div
                       key={slide.slide}
-                      className="p-2 rounded-lg bg-secondary/30 border border-border/50"
+                      className="rounded-lg bg-secondary/30 border border-border/50 overflow-hidden"
                     >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded">
-                          Slide {slide.slide}
-                        </span>
-                        <span className="font-medium text-sm">{slide.title}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{slide.content}</p>
+                      {slide.imageUrl ? (
+                        <div className="relative group">
+                          <img
+                            src={slide.imageUrl}
+                            alt={`Slide ${slide.slide}`}
+                            className="w-full aspect-square object-cover"
+                          />
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => downloadImage(slide.imageUrl!, `slide-${slide.slide}.png`)}
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="p-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded">
+                              {slide.slide}
+                            </span>
+                            <span className="font-medium text-xs truncate">{slide.title}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-3">{slide.content}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

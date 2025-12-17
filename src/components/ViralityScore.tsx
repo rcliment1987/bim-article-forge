@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, TrendingUp, Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, TrendingUp, Lightbulb, ChevronDown, ChevronUp, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArticleData } from "./ArticleForm";
@@ -33,11 +33,13 @@ interface ViralityAnalysis {
 
 interface ViralityScoreProps {
   articleData: ArticleData;
+  onArticleImproved?: (newData: ArticleData) => void;
 }
 
-const ViralityScore = ({ articleData }: ViralityScoreProps) => {
+const ViralityScore = ({ articleData, onArticleImproved }: ViralityScoreProps) => {
   const [analysis, setAnalysis] = useState<ViralityAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
 
   const analyzeArticle = async () => {
@@ -72,6 +74,45 @@ const ViralityScore = ({ articleData }: ViralityScoreProps) => {
       toast.error("Erreur de connexion");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const improveArticle = async () => {
+    if (!analysis || !onArticleImproved) {
+      toast.error("Analysez d'abord l'article");
+      return;
+    }
+
+    setIsImproving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("improve-article", {
+        body: { articleData, viralityAnalysis: analysis },
+      });
+
+      if (error) {
+        console.error("Error improving:", error);
+        toast.error("Erreur lors de la correction");
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      if (data?.success && data.article) {
+        onArticleImproved({
+          ...articleData,
+          ...data.article,
+        });
+        setAnalysis(null); // Reset analysis after improvement
+        toast.success("Article amélioré ! Ré-analysez pour voir les nouveaux scores.");
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      toast.error("Erreur de connexion");
+    } finally {
+      setIsImproving(false);
     }
   };
 
@@ -116,23 +157,46 @@ const ViralityScore = ({ articleData }: ViralityScoreProps) => {
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="space-y-4">
-            <Button
-              onClick={analyzeArticle}
-              disabled={isLoading || !hasContent}
-              className="w-full bg-primary hover:bg-primary/90"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analyse en cours...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Analyser la viralité
-                </>
+            <div className="flex gap-2">
+              <Button
+                onClick={analyzeArticle}
+                disabled={isLoading || !hasContent}
+                className="flex-1 bg-primary hover:bg-primary/90"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Analyse...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    Analyser
+                  </>
+                )}
+              </Button>
+              
+              {analysis && onArticleImproved && (
+                <Button
+                  onClick={improveArticle}
+                  disabled={isImproving}
+                  variant="outline"
+                  className="flex-1 border-primary/50 hover:bg-primary/10"
+                >
+                  {isImproving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Correction...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Corriger
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+            </div>
 
             {analysis && (
               <>
