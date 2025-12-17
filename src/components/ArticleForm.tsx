@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, FileText, Image, BookOpen, Code, Target } from "lucide-react";
+import { Sparkles, FileText, Image, BookOpen, Code, Target, Wand2, Loader2 } from "lucide-react";
 
 export interface ArticleData {
   subject: string;
@@ -24,9 +24,11 @@ export interface ArticleData {
 interface ArticleFormProps {
   articleData: ArticleData;
   onDataChange: (data: ArticleData) => void;
+  onGenerateArticle: () => Promise<void>;
+  isGenerating: boolean;
 }
 
-const ArticleForm = ({ articleData, onDataChange }: ArticleFormProps) => {
+const ArticleForm = ({ articleData, onDataChange, onGenerateArticle, isGenerating }: ArticleFormProps) => {
   const [activeTab, setActiveTab] = useState("meta");
 
   const handleChange = (field: keyof ArticleData, value: string) => {
@@ -54,13 +56,30 @@ const ArticleForm = ({ articleData, onDataChange }: ArticleFormProps) => {
             Sujet de l'article
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <Textarea
             placeholder="Décrivez le sujet de votre article (ex: Le CDE n'est pas une Dropbox, L'importance des Fiches GID au Luxembourg...)"
             value={articleData.subject}
             onChange={(e) => handleChange("subject", e.target.value)}
             className="min-h-[80px] bg-input/50 border-border focus:border-primary"
           />
+          <Button
+            onClick={onGenerateArticle}
+            disabled={!articleData.subject.trim() || isGenerating}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground min-h-[44px]"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Génération en cours...
+              </>
+            ) : (
+              <>
+                <Wand2 className="h-4 w-4 mr-2" />
+                Générer l'ébauche avec l'IA
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
 
