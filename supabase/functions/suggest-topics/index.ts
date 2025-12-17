@@ -7,21 +7,13 @@ const corsHeaders = {
 
 const systemPrompt = `Tu es le Stratège de Contenu technique de "BIMsmarter", expert du secteur AEC (Architecture, Engineering, Construction) au Benelux.
 
-Ta mission: Proposer des sujets d'articles de VULGARISATION pertinents et actuels sur le BIM au Luxembourg et en Belgique.
+Ta mission: Proposer des sujets d'articles de VULGARISATION pertinents et actuels sur le BIM au Luxembourg et en Belgique, BASÉS SUR LES ACTUALITÉS RÉELLES fournies.
 
 ⚠️ RÈGLE CRITIQUE - TRÈS IMPORTANT:
 BIMsmarter est un site de VULGARISATION ÉDUCATIVE, PAS un prestataire de services !
 - On ne vend RIEN
 - On ÉDUQUE et VULGARISE les normes BIM
 - Approche obligatoire: PROBLÈME (trouvé dans l'actualité) = SOLUTION (trouvée dans les normes)
-
-SOURCES D'ACTUALITÉS À CONSULTER:
-- LinkedIn (posts de BIM Managers, bureaux d'études, CRTI-B, buildingSMART)
-- Actualités construction Benelux
-- Publications du CRTI-B (Luxembourg)
-- Confédération Construction (Belgique)
-- buildingSMART International
-- Retours terrain des professionnels
 
 CONTEXTE BIMSMARTER:
 - Cible : Directeurs Techniques, BIM Managers, Chefs de services dans les Bureaux d'Études
@@ -40,23 +32,74 @@ THÉMATIQUES CLÉS À COUVRIR:
 9. IA et automatisation dans le BIM
 10. Digitalisation du secteur construction Benelux
 
-PAIN POINTS DU MARCHÉ (chercher ces problèmes dans l'actualité):
-- Perte de productivité (30-40% du temps en "archéologie documentaire")
-- Saisie manuelle des Fiches GID
-- Fragmentation des acteurs PME
-- Gestion des RFI (Demandes d'Information)
-- Tri des Clashes (faux positifs)
-
 STRUCTURE DES SUGGESTIONS:
 Chaque sujet doit suivre le format "PROBLÈME = SOLUTION":
-- Identifier un problème concret d'actualité
+- Identifier un problème concret trouvé dans les actualités fournies
 - Proposer la norme/standard qui apporte la solution
 
 Génère 5 suggestions de sujets d'articles en JSON, chacune avec:
 - topic: Le sujet proposé (format: "Problème X : Comment la norme Y apporte la solution")
 - angle: L'angle vulgarisation (éducatif, pas commercial - expliquer la norme simplement)
-- relevance: Pourquoi c'est pertinent maintenant pour le Benelux (citer l'actualité ou le pain point)
-- keywords: 3-5 mots-clés SEO`;
+- relevance: Pourquoi c'est pertinent maintenant pour le Benelux (citer l'actualité source)
+- keywords: 3-5 mots-clés SEO
+- source: L'URL source de l'actualité qui a inspiré ce sujet (si disponible)`;
+
+async function searchBIMNews(apiKey: string): Promise<{ content: string; citations: string[] }> {
+  console.log("Searching for BIM news in Benelux with Perplexity...");
+  
+  const queries = [
+    "BIM Luxembourg actualités construction 2025",
+    "BIM Belgique construction numérique actualités",
+    "CRTI-B Luxembourg BIM nouvelles",
+    "ISO 19650 actualités Europe",
+  ];
+
+  const allCitations: string[] = [];
+  const allContent: string[] = [];
+
+  for (const query of queries) {
+    try {
+      const response = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "sonar",
+          messages: [
+            { role: "system", content: "Tu es un assistant de recherche. Fournis des informations factuelles et récentes sur le BIM au Benelux." },
+            { role: "user", content: query }
+          ],
+          search_recency_filter: "month",
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`Perplexity search error for "${query}":`, response.status);
+        continue;
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      const citations = data.citations || [];
+
+      if (content) {
+        allContent.push(`### Résultats pour "${query}":\n${content}`);
+      }
+      if (citations.length > 0) {
+        allCitations.push(...citations);
+      }
+    } catch (error) {
+      console.error(`Error searching "${query}":`, error);
+    }
+  }
+
+  return {
+    content: allContent.join("\n\n"),
+    citations: [...new Set(allCitations)], // Remove duplicates
+  };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -65,6 +108,8 @@ serve(async (req) => {
 
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    
     if (!LOVABLE_API_KEY) {
       console.error("LOVABLE_API_KEY not configured");
       return new Response(
@@ -73,7 +118,39 @@ serve(async (req) => {
       );
     }
 
-    console.log("Generating topic suggestions...");
+    // Step 1: Search for real BIM news using Perplexity
+    let newsContext = "";
+    let sources: string[] = [];
+    
+    if (PERPLEXITY_API_KEY) {
+      console.log("Perplexity API key found, searching for real news...");
+      const searchResults = await searchBIMNews(PERPLEXITY_API_KEY);
+      newsContext = searchResults.content;
+      sources = searchResults.citations;
+      console.log(`Found ${sources.length} sources from Perplexity`);
+    } else {
+      console.log("No Perplexity API key, using AI knowledge only");
+      newsContext = "Pas d'actualités récentes disponibles. Utilise tes connaissances sur les tendances BIM au Benelux.";
+    }
+
+    // Step 2: Generate topic suggestions based on real news
+    console.log("Generating topic suggestions with Lovable AI...");
+
+    const userPrompt = `Voici les actualités BIM récentes trouvées pour le Luxembourg et la Belgique:
+
+${newsContext}
+
+Sources disponibles:
+${sources.length > 0 ? sources.map((s, i) => `${i + 1}. ${s}`).join("\n") : "Aucune source web trouvée"}
+
+En te basant sur ces actualités RÉELLES, propose 5 sujets d'articles de vulgarisation BIM pertinents pour le Benelux en ${new Date().getFullYear()}.
+
+Chaque sujet doit:
+- Partir d'un PROBLÈME réel identifié dans les actualités
+- Proposer une SOLUTION basée sur les normes (ISO 19650, CRTI-B, etc.)
+- Être éducatif, pas commercial
+
+Réponds UNIQUEMENT avec un tableau JSON contenant 5 objets avec les champs: topic, angle, relevance, keywords (tableau), source (URL si disponible, sinon null).`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -85,20 +162,9 @@ serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { 
-            role: "user", 
-            content: `Propose 5 sujets d'articles d'actualité BIM pertinents pour le Luxembourg et la Belgique en ${new Date().getFullYear()}.
-
-Considère:
-- Les évolutions réglementaires récentes (ISO 19650-6, obligations BIM dans les marchés publics)
-- Les défis actuels des bureaux d'études (pénurie de talents, digitalisation)
-- Les opportunités d'automatisation par l'IA
-- Les spécificités locales (CRTI-B Luxembourg, normes belges)
-
-Réponds UNIQUEMENT avec un tableau JSON contenant 5 objets avec les champs: topic, angle, relevance, keywords.`
-          }
+          { role: "user", content: userPrompt }
         ],
-        temperature: 0.8,
+        temperature: 0.7,
       }),
     });
 
@@ -150,9 +216,14 @@ Réponds UNIQUEMENT avec un tableau JSON contenant 5 objets avec les champs: top
       );
     }
 
-    console.log("Topic suggestions generated successfully");
+    console.log("Topic suggestions generated successfully with real news context");
     return new Response(
-      JSON.stringify({ success: true, suggestions }),
+      JSON.stringify({ 
+        success: true, 
+        suggestions,
+        sourcesUsed: sources.length,
+        hasRealNews: sources.length > 0
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
