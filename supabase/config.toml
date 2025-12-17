@@ -5,3 +5,18 @@ verify_jwt = false
 
 [functions.suggest-topics]
 verify_jwt = false
+
+[functions.search-context]
+verify_jwt = false
+
+[functions.generate-titles]
+verify_jwt = false
+
+[functions.analyze-virality]
+verify_jwt = false
+
+[functions.generate-linkedin]
+verify_jwt = false
+
+[functions.generate-image]
+verify_jwt = false
