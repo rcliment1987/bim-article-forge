@@ -101,24 +101,42 @@ const Index = () => {
       }
       if (data?.success && data.article) {
         const article = data.article;
-        // Helper to ensure value is string (AI may return objects)
-        const ensureString = (val: unknown): string => {
+        // Helper to extract plain text from potentially nested AI responses
+        const extractText = (val: unknown): string => {
           if (typeof val === 'string') return val;
-          if (val && typeof val === 'object') return JSON.stringify(val, null, 2);
+          if (val && typeof val === 'object') {
+            const obj = val as Record<string, unknown>;
+            // If object has common text properties, extract them
+            if (typeof obj.content === 'string') return obj.content;
+            if (typeof obj.text === 'string') return obj.text;
+            if (typeof obj.value === 'string') return obj.value;
+            // For arrays, join with newlines
+            if (Array.isArray(val)) {
+              return val.map(item => extractText(item)).filter(Boolean).join('\n');
+            }
+            // Last resort: if object has title/description, format nicely
+            const parts: string[] = [];
+            if (typeof obj.title === 'string') parts.push(`**${obj.title}**`);
+            if (typeof obj.description === 'string') parts.push(obj.description);
+            if (typeof obj.example === 'string') parts.push(`_Exemple: ${obj.example}_`);
+            if (parts.length > 0) return parts.join('\n');
+            // Avoid JSON output - return empty if nothing useful
+            return '';
+          }
           return '';
         };
         setArticleData(prev => ({
           ...prev,
-          title: ensureString(article.title) || prev.title,
-          description: ensureString(article.description) || prev.description,
-          slug: ensureString(article.slug) || prev.slug,
-          introduction: ensureString(article.introduction) || prev.introduction,
-          problem: ensureString(article.problem) || prev.problem,
-          solution: ensureString(article.solution) || prev.solution,
-          bimAngle: ensureString(article.bimAngle) || prev.bimAngle,
-          conclusion: ensureString(article.conclusion) || prev.conclusion,
-          technicalSources: ensureString(article.technicalSources) || prev.technicalSources,
-          altText: ensureString(article.altText) || prev.altText,
+          title: extractText(article.title) || prev.title,
+          description: extractText(article.description) || prev.description,
+          slug: extractText(article.slug) || prev.slug,
+          introduction: extractText(article.introduction) || prev.introduction,
+          problem: extractText(article.problem) || prev.problem,
+          solution: extractText(article.solution) || prev.solution,
+          bimAngle: extractText(article.bimAngle) || prev.bimAngle,
+          conclusion: extractText(article.conclusion) || prev.conclusion,
+          technicalSources: extractText(article.technicalSources) || prev.technicalSources,
+          altText: extractText(article.altText) || prev.altText,
         }));
         toast.success("Article généré avec enrichissement contextuel !");
       }
@@ -147,7 +165,7 @@ const Index = () => {
           <ExportActions articleData={articleData} onReset={handleReset} />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Left Column */}
+            {/* Left Column - Configuration & Tools */}
             <div className="lg:col-span-3 space-y-4">
               <TopicSuggestions onSelectTopic={handleSelectTopic} />
               <ArticleHistory 
@@ -155,10 +173,6 @@ const Index = () => {
                 onLoadArticle={setArticleData}
                 onSaveArticle={() => {}}
               />
-            </div>
-
-            {/* Middle Column */}
-            <div className="lg:col-span-5 space-y-4">
               <TemplateSelector selectedTemplate={selectedTemplate} onSelectTemplate={setSelectedTemplate} />
               <ArticleForm 
                 articleData={articleData} 
@@ -173,12 +187,16 @@ const Index = () => {
               />
             </div>
 
-            {/* Right Column */}
-            <div className="lg:col-span-4 space-y-4">
+            {/* Middle Column - Preview Only */}
+            <div className="lg:col-span-5">
               <ArticlePreview articleData={articleData} />
+            </div>
+
+            {/* Right Column - Analysis & Generation */}
+            <div className="lg:col-span-4 space-y-4">
               <ViralityScore articleData={articleData} />
-              <LinkedInGenerator articleData={articleData} />
               <ImageGenerator subject={articleData.subject} />
+              <LinkedInGenerator articleData={articleData} />
             </div>
           </div>
         </div>
