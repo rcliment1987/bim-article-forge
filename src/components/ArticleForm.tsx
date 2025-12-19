@@ -26,9 +26,10 @@ interface ArticleFormProps {
   onDataChange: (data: ArticleData) => void;
   onGenerateArticle: () => Promise<void>;
   isGenerating: boolean;
+  generationStep?: string;
 }
 
-const ArticleForm = ({ articleData, onDataChange, onGenerateArticle, isGenerating }: ArticleFormProps) => {
+const ArticleForm = ({ articleData, onDataChange, onGenerateArticle, isGenerating, generationStep }: ArticleFormProps) => {
   const [activeTab, setActiveTab] = useState("meta");
 
   const handleChange = (field: keyof ArticleData, value: string) => {
@@ -71,7 +72,7 @@ const ArticleForm = ({ articleData, onDataChange, onGenerateArticle, isGeneratin
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Génération en cours...
+                {generationStep || "Génération en cours..."}
               </>
             ) : (
               <>

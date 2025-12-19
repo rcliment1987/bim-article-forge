@@ -12,6 +12,7 @@ import ImageGenerator from "@/components/ImageGenerator";
 import ArticleHistory from "@/components/ArticleHistory";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useArticleCache } from "@/hooks/useArticleCache";
 
 const initialArticleData: ArticleData = {
   subject: "",
@@ -30,11 +31,14 @@ const initialArticleData: ArticleData = {
 const Index = () => {
   const [isDark, setIsDark] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState<string>("");
   const [selectedTemplate, setSelectedTemplate] = useState<ArticleTemplate>("standard");
   const [articleData, setArticleData] = useState<ArticleData>(() => {
     const saved = localStorage.getItem("bimsmarter-article-draft");
     return saved ? JSON.parse(saved) : initialArticleData;
   });
+
+  const { getCached, setCache, getCacheStats } = useArticleCache();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -70,13 +74,30 @@ const Index = () => {
     toast.success("Article corrigé avec succès !");
   };
 
-  const handleGenerateArticle = async () => {
+  const handleGenerateArticle = async (forceRegenerate = false) => {
     if (!articleData.subject.trim()) {
       toast.error("Veuillez entrer un sujet d'article");
       return;
     }
 
+    // Check cache first (unless force regenerate)
+    if (!forceRegenerate) {
+      const cached = getCached(articleData.subject, selectedTemplate);
+      if (cached) {
+        setArticleData(prev => ({
+          ...prev,
+          ...cached,
+          subject: prev.subject, // Keep current subject
+        }));
+        const stats = getCacheStats();
+        toast.success(`Article chargé depuis le cache (${stats.entries} articles en cache)`);
+        return;
+      }
+    }
+
     setIsGenerating(true);
+    setGenerationStep("Recherche de contexte...");
+    
     try {
       // First, search for context
       let context = null;
@@ -86,9 +107,13 @@ const Index = () => {
         });
         if (contextData?.success && contextData.context) {
           context = contextData.context;
+          setGenerationStep("Contexte trouvé, génération de l'article...");
+        } else {
+          setGenerationStep("Génération de l'article...");
         }
       } catch (e) {
         console.log("Context search skipped");
+        setGenerationStep("Génération de l'article...");
       }
 
       // Generate article with template and context
@@ -106,8 +131,9 @@ const Index = () => {
       }
       if (data?.success && data.article) {
         const article = data.article;
+        
         // Helper to extract plain text from potentially nested AI responses
-        const extractText = (val: unknown): string => {
+        const extractText = (val: unknown, fieldName?: string): string => {
           if (typeof val === 'string') return val;
           if (val && typeof val === 'object') {
             const obj = val as Record<string, unknown>;
@@ -125,30 +151,50 @@ const Index = () => {
             if (typeof obj.description === 'string') parts.push(obj.description);
             if (typeof obj.example === 'string') parts.push(`_Exemple: ${obj.example}_`);
             if (parts.length > 0) return parts.join('\n');
-            // Avoid JSON output - return empty if nothing useful
+            
+            // Log warning for unexpected format
+            console.warn(`[extractText] Format inattendu pour "${fieldName}":`, val);
             return '';
           }
           return '';
         };
-        setArticleData(prev => ({
-          ...prev,
-          title: extractText(article.title) || prev.title,
-          description: extractText(article.description) || prev.description,
-          slug: extractText(article.slug) || prev.slug,
-          introduction: extractText(article.introduction) || prev.introduction,
-          problem: extractText(article.problem) || prev.problem,
-          solution: extractText(article.solution) || prev.solution,
-          bimAngle: extractText(article.bimAngle) || prev.bimAngle,
-          conclusion: extractText(article.conclusion) || prev.conclusion,
-          technicalSources: extractText(article.technicalSources) || prev.technicalSources,
-          altText: extractText(article.altText) || prev.altText,
-        }));
+
+        const newArticleData: ArticleData = {
+          ...articleData,
+          title: extractText(article.title, 'title') || articleData.title,
+          description: extractText(article.description, 'description') || articleData.description,
+          slug: extractText(article.slug, 'slug') || articleData.slug,
+          introduction: extractText(article.introduction, 'introduction') || articleData.introduction,
+          problem: extractText(article.problem, 'problem') || articleData.problem,
+          solution: extractText(article.solution, 'solution') || articleData.solution,
+          bimAngle: extractText(article.bimAngle, 'bimAngle') || articleData.bimAngle,
+          conclusion: extractText(article.conclusion, 'conclusion') || articleData.conclusion,
+          technicalSources: extractText(article.technicalSources, 'technicalSources') || articleData.technicalSources,
+          altText: extractText(article.altText, 'altText') || articleData.altText,
+        };
+
+        // Check for empty fields and notify user
+        const emptyFields = Object.entries(newArticleData)
+          .filter(([key, val]) => !val && key !== 'technicalSources' && key !== 'subject')
+          .map(([key]) => key);
+
+        if (emptyFields.length > 0) {
+          toast.warning(`Certains champs n'ont pas été générés: ${emptyFields.join(', ')}`);
+        }
+
+        setArticleData(newArticleData);
+        
+        // Cache the result
+        setCache(articleData.subject, selectedTemplate, newArticleData);
+        
         toast.success("Article généré avec enrichissement contextuel !");
       }
     } catch (err) {
+      console.error("Generation error:", err);
       toast.error("Erreur de connexion");
     } finally {
       setIsGenerating(false);
+      setGenerationStep("");
     }
   };
 
@@ -182,8 +228,9 @@ const Index = () => {
               <ArticleForm 
                 articleData={articleData} 
                 onDataChange={setArticleData}
-                onGenerateArticle={handleGenerateArticle}
+                onGenerateArticle={() => handleGenerateArticle(false)}
                 isGenerating={isGenerating}
+                generationStep={generationStep}
               />
               <TitleGenerator 
                 subject={articleData.subject}
