@@ -151,14 +151,51 @@ Réponds UNIQUEMENT avec le JSON de l'article amélioré.`
     let improvedArticle;
     try {
       const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : content;
-      improvedArticle = JSON.parse(jsonStr.trim());
+      let jsonStr = jsonMatch ? jsonMatch[1] : content;
+      
+      // Sanitize the JSON string - remove control characters that break parsing
+      jsonStr = jsonStr
+        .trim()
+        // Replace literal newlines inside strings with escaped newlines
+        .replace(/[\x00-\x1F\x7F]/g, (char: string) => {
+          if (char === '\n') return '\\n';
+          if (char === '\r') return '\\r';
+          if (char === '\t') return '\\t';
+          return ''; // Remove other control characters
+        });
+      
+      improvedArticle = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error("JSON parse error:", parseError);
-      return new Response(
-        JSON.stringify({ error: "Erreur de parsing" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("Content received:", content.substring(0, 500));
+      
+      // Try a more aggressive cleanup
+      try {
+        let cleanedContent = content
+          .replace(/```json\s*/g, '')
+          .replace(/```\s*/g, '')
+          .trim();
+        
+        // Extract JSON object pattern
+        const jsonObjectMatch = cleanedContent.match(/\{[\s\S]*\}/);
+        if (jsonObjectMatch) {
+          // Replace problematic characters more aggressively
+          const sanitized = jsonObjectMatch[0]
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t');
+          improvedArticle = JSON.parse(sanitized);
+          console.log("Successfully parsed with aggressive cleanup");
+        } else {
+          throw new Error("No JSON object found");
+        }
+      } catch (retryError) {
+        console.error("Retry parse error:", retryError);
+        return new Response(
+          JSON.stringify({ error: "Erreur de parsing - format de réponse invalide" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     console.log("Article improved successfully");
