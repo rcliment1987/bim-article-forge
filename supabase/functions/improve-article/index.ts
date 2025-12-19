@@ -17,21 +17,6 @@ RÈGLES DE RÉÉCRITURE:
 5. Améliore la lisibilité si score < 80 (phrases courtes, bullet points)
 6. Améliore la partageabilité si score < 80 (insights quotables, statistiques)
 
-FORMAT DE SORTIE:
-Retourne UNIQUEMENT un JSON valide avec les mêmes champs que l'article original:
-{
-  "title": "...",
-  "description": "...",
-  "slug": "...",
-  "introduction": "...",
-  "problem": "...",
-  "solution": "...",
-  "bimAngle": "...",
-  "conclusion": "...",
-  "technicalSources": "...",
-  "altText": "..."
-}
-
 STYLE IMPOSÉ:
 - Phrases courtes (max 15 mots)
 - Bullet points pour les listes
@@ -39,6 +24,62 @@ STYLE IMPOSÉ:
 - Chiffres et statistiques mis en avant
 - Questions rhétoriques pour l'engagement
 - Accroches choc en début de section`;
+
+// Tool definition for structured output
+const improvedArticleTool = {
+  type: "function" as const,
+  function: {
+    name: "return_improved_article",
+    description: "Retourne l'article amélioré avec tous les champs requis",
+    parameters: {
+      type: "object",
+      properties: {
+        title: {
+          type: "string",
+          description: "Titre optimisé pour le SEO et l'engagement"
+        },
+        description: {
+          type: "string",
+          description: "Description SEO améliorée (max 150 caractères)"
+        },
+        slug: {
+          type: "string",
+          description: "URL optimisée commençant par /"
+        },
+        introduction: {
+          type: "string",
+          description: "Introduction percutante avec accroche choc"
+        },
+        problem: {
+          type: "string",
+          description: "Section problème avec bullet points et chiffres"
+        },
+        solution: {
+          type: "string",
+          description: "Solution claire avec références normatives"
+        },
+        bimAngle: {
+          type: "string",
+          description: "Angle BIM pratique avec exemple Benelux"
+        },
+        conclusion: {
+          type: "string",
+          description: "Conclusion avec CTA et question d'engagement"
+        },
+        technicalSources: {
+          type: "string",
+          description: "Sources techniques (normes, chapitres)"
+        },
+        altText: {
+          type: "string",
+          description: "Texte alternatif image optimisé (max 125 caractères)"
+        }
+      },
+      required: ["title", "description", "slug", "introduction", "problem", "solution", "bimAngle", "conclusion", "technicalSources", "altText"],
+      additionalProperties: false
+    }
+  }
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -112,11 +153,11 @@ ${viralityAnalysis.recommendations.map((r: { priority: string; text: string; imp
 
 ${articleContent}
 
-${analysisContent}
-
-Réponds UNIQUEMENT avec le JSON de l'article amélioré.`
+${analysisContent}`
           }
         ],
+        tools: [improvedArticleTool],
+        tool_choice: { type: "function", function: { name: "return_improved_article" } },
         temperature: 0.7,
       }),
     });
@@ -139,63 +180,26 @@ Réponds UNIQUEMENT avec le JSON de l'article amélioré.`
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
+    
+    // Extract from tool call
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall || toolCall.function.name !== "return_improved_article") {
+      console.error("No tool call in response:", JSON.stringify(data));
       return new Response(
-        JSON.stringify({ error: "Réponse IA vide" }),
+        JSON.stringify({ error: "Format de réponse IA inattendu" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     let improvedArticle;
     try {
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
-      let jsonStr = jsonMatch ? jsonMatch[1] : content;
-      
-      // Sanitize the JSON string - remove control characters that break parsing
-      jsonStr = jsonStr
-        .trim()
-        // Replace literal newlines inside strings with escaped newlines
-        .replace(/[\x00-\x1F\x7F]/g, (char: string) => {
-          if (char === '\n') return '\\n';
-          if (char === '\r') return '\\r';
-          if (char === '\t') return '\\t';
-          return ''; // Remove other control characters
-        });
-      
-      improvedArticle = JSON.parse(jsonStr);
+      improvedArticle = JSON.parse(toolCall.function.arguments);
     } catch (parseError) {
-      console.error("JSON parse error:", parseError);
-      console.error("Content received:", content.substring(0, 500));
-      
-      // Try a more aggressive cleanup
-      try {
-        let cleanedContent = content
-          .replace(/```json\s*/g, '')
-          .replace(/```\s*/g, '')
-          .trim();
-        
-        // Extract JSON object pattern
-        const jsonObjectMatch = cleanedContent.match(/\{[\s\S]*\}/);
-        if (jsonObjectMatch) {
-          // Replace problematic characters more aggressively
-          const sanitized = jsonObjectMatch[0]
-            .replace(/\n/g, '\\n')
-            .replace(/\r/g, '\\r')
-            .replace(/\t/g, '\\t');
-          improvedArticle = JSON.parse(sanitized);
-          console.log("Successfully parsed with aggressive cleanup");
-        } else {
-          throw new Error("No JSON object found");
-        }
-      } catch (retryError) {
-        console.error("Retry parse error:", retryError);
-        return new Response(
-          JSON.stringify({ error: "Erreur de parsing - format de réponse invalide" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      console.error("JSON parse error:", parseError, "Arguments:", toolCall.function.arguments);
+      return new Response(
+        JSON.stringify({ error: "Erreur de parsing de la réponse IA" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log("Article improved successfully");
