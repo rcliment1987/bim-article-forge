@@ -72,7 +72,21 @@ RÈGLE D'OR: "Si un enfant de 12 ans ne comprend pas l'intérêt business, c'est
 - Exemples ultra-concrets (1 phrase max)
 - Analogies simples ("Le BEP = la recette de cuisine du projet")
 - Chiffres et statistiques percutants
-- Questions rhétoriques qui font réfléchir`;
+- Questions rhétoriques qui font réfléchir
+
+IMPORTANT: Tu dois TOUJOURS répondre avec un JSON valide contenant les champs suivants:
+{
+  "title": "Titre accrocheur avec chiffre ou question (max 60 caractères)",
+  "description": "Description SEO de 150 caractères max",
+  "slug": "URL format court, minuscules, tirets, commençant par /",
+  "introduction": "2-3 phrases max. COMMENCER par un chiffre choc ou une question provocante",
+  "problem": "80-100 mots max. Phrases courtes. Utiliser des bullet points",
+  "solution": "80-100 mots max. Citer UNE norme précise avec chapitre. Format scannable",
+  "bimAngle": "80-100 mots max. Exemple concret Benelux. Actionnable immédiatement",
+  "conclusion": "2-3 phrases. Un takeaway clair + question d'engagement",
+  "technicalSources": "Sources exactes (norme + chapitre)",
+  "altText": "Texte alternatif image (max 125 caractères)"
+}`;
 
 const templateDescriptions: Record<string, string> = {
   standard: "Article standard avec structure classique : introduction, problème, solution, angle BIM, conclusion",
@@ -83,61 +97,29 @@ const templateDescriptions: Record<string, string> = {
   norm: "Décryptage d'une norme avec format '[Norme] expliquée simplement'",
 };
 
-// Tool definition for structured output
-const articleTool = {
-  type: "function" as const,
-  function: {
-    name: "generate_article",
-    description: "Génère un article BIM structuré et optimisé pour la viralité",
-    parameters: {
-      type: "object",
-      properties: {
-        title: {
-          type: "string",
-          description: "Titre accrocheur avec chiffre ou question (max 60 caractères)"
-        },
-        description: {
-          type: "string",
-          description: "Description SEO de 150 caractères max"
-        },
-        slug: {
-          type: "string",
-          description: "URL format court, minuscules, tirets, commençant par /"
-        },
-        introduction: {
-          type: "string",
-          description: "2-3 phrases max. COMMENCER par un chiffre choc ou une question provocante"
-        },
-        problem: {
-          type: "string",
-          description: "80-100 mots max. Phrases courtes. Utiliser des bullet points"
-        },
-        solution: {
-          type: "string",
-          description: "80-100 mots max. Citer UNE norme précise avec chapitre. Format scannable"
-        },
-        bimAngle: {
-          type: "string",
-          description: "80-100 mots max. Exemple concret Benelux. Actionnable immédiatement"
-        },
-        conclusion: {
-          type: "string",
-          description: "2-3 phrases. Un takeaway clair + question d'engagement"
-        },
-        technicalSources: {
-          type: "string",
-          description: "Sources exactes (norme + chapitre)"
-        },
-        altText: {
-          type: "string",
-          description: "Texte alternatif image (max 125 caractères)"
-        }
-      },
-      required: ["title", "description", "slug", "introduction", "problem", "solution", "bimAngle", "conclusion", "technicalSources", "altText"],
-      additionalProperties: false
+function extractJSON(content: string): Record<string, unknown> | null {
+  // Try to extract JSON from markdown code blocks first
+  const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[1].trim());
+    } catch {
+      console.log("Failed to parse JSON from code block");
     }
   }
-};
+  
+  // Try to find JSON object directly
+  const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
+  if (jsonObjectMatch) {
+    try {
+      return JSON.parse(jsonObjectMatch[0]);
+    } catch {
+      console.log("Failed to parse JSON object directly");
+    }
+  }
+  
+  return null;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -154,16 +136,16 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY not configured");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    if (!GROQ_API_KEY) {
+      console.error("GROQ_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "Configuration IA manquante" }),
+        JSON.stringify({ error: "Configuration IA manquante (Groq)" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Generating article for subject:", subject, "template:", template);
+    console.log("Generating article with Groq for subject:", subject, "template:", template);
 
     const templateDesc = templateDescriptions[template] || templateDescriptions.standard;
 
@@ -181,14 +163,14 @@ serve(async (req) => {
       }
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "llama3-70b-8192",
         messages: [
           { role: "system", content: baseSystemPrompt },
           { 
@@ -203,62 +185,53 @@ RAPPEL CRITIQUE:
 - Chaque section : 80-120 mots MAX
 - Phrases courtes (15 mots max)
 - COMMENCE par un chiffre ou une question choc
-- Format scannable avec bullet points`
+- Format scannable avec bullet points
+
+IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ou après.`
           }
         ],
-        tools: [articleTool],
-        tool_choice: { type: "function", function: { name: "generate_article" } },
         temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("Groq API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Limite de requêtes atteinte. Réessayez dans quelques instants." }),
+          JSON.stringify({ error: "Limite de requêtes Groq atteinte. Réessayez dans quelques instants." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Crédits IA insuffisants. Veuillez recharger votre compte." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
       return new Response(
-        JSON.stringify({ error: "Erreur du service IA" }),
+        JSON.stringify({ error: "Erreur du service IA Groq" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
-    
-    // Extract from tool call
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall || toolCall.function.name !== "generate_article") {
-      console.error("No tool call in response:", JSON.stringify(data));
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      console.error("No content in Groq response");
       return new Response(
-        JSON.stringify({ error: "Format de réponse IA inattendu" }),
+        JSON.stringify({ error: "Réponse IA vide" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    let articleData;
-    try {
-      articleData = JSON.parse(toolCall.function.arguments);
-    } catch (parseError) {
-      console.error("JSON parse error:", parseError, "Arguments:", toolCall.function.arguments);
+    const articleData = extractJSON(content);
+    if (!articleData) {
+      console.error("Failed to parse article JSON:", content);
       return new Response(
         JSON.stringify({ error: "Erreur de parsing de la réponse IA" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Article generated successfully with template:", template);
+    console.log("Article generated successfully with Groq, template:", template);
     return new Response(
       JSON.stringify({ success: true, article: articleData, template }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

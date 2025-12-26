@@ -23,63 +23,45 @@ STYLE IMPOSÉ:
 - **Gras** sur les mots-clés
 - Chiffres et statistiques mis en avant
 - Questions rhétoriques pour l'engagement
-- Accroches choc en début de section`;
+- Accroches choc en début de section
 
-// Tool definition for structured output
-const improvedArticleTool = {
-  type: "function" as const,
-  function: {
-    name: "return_improved_article",
-    description: "Retourne l'article amélioré avec tous les champs requis",
-    parameters: {
-      type: "object",
-      properties: {
-        title: {
-          type: "string",
-          description: "Titre optimisé pour le SEO et l'engagement"
-        },
-        description: {
-          type: "string",
-          description: "Description SEO améliorée (max 150 caractères)"
-        },
-        slug: {
-          type: "string",
-          description: "URL optimisée commençant par /"
-        },
-        introduction: {
-          type: "string",
-          description: "Introduction percutante avec accroche choc"
-        },
-        problem: {
-          type: "string",
-          description: "Section problème avec bullet points et chiffres"
-        },
-        solution: {
-          type: "string",
-          description: "Solution claire avec références normatives"
-        },
-        bimAngle: {
-          type: "string",
-          description: "Angle BIM pratique avec exemple Benelux"
-        },
-        conclusion: {
-          type: "string",
-          description: "Conclusion avec CTA et question d'engagement"
-        },
-        technicalSources: {
-          type: "string",
-          description: "Sources techniques (normes, chapitres)"
-        },
-        altText: {
-          type: "string",
-          description: "Texte alternatif image optimisé (max 125 caractères)"
-        }
-      },
-      required: ["title", "description", "slug", "introduction", "problem", "solution", "bimAngle", "conclusion", "technicalSources", "altText"],
-      additionalProperties: false
+IMPORTANT: Tu dois TOUJOURS répondre avec un JSON valide contenant les champs suivants:
+{
+  "title": "Titre optimisé pour le SEO et l'engagement",
+  "description": "Description SEO améliorée (max 150 caractères)",
+  "slug": "URL optimisée commençant par /",
+  "introduction": "Introduction percutante avec accroche choc",
+  "problem": "Section problème avec bullet points et chiffres",
+  "solution": "Solution claire avec références normatives",
+  "bimAngle": "Angle BIM pratique avec exemple Benelux",
+  "conclusion": "Conclusion avec CTA et question d'engagement",
+  "technicalSources": "Sources techniques (normes, chapitres)",
+  "altText": "Texte alternatif image optimisé (max 125 caractères)"
+}`;
+
+function extractJSON(content: string): Record<string, unknown> | null {
+  // Try to extract JSON from markdown code blocks first
+  const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[1].trim());
+    } catch {
+      console.log("Failed to parse JSON from code block");
     }
   }
-};
+  
+  // Try to find JSON object directly
+  const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
+  if (jsonObjectMatch) {
+    try {
+      return JSON.parse(jsonObjectMatch[0]);
+    } catch {
+      console.log("Failed to parse JSON object directly");
+    }
+  }
+  
+  return null;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -96,16 +78,16 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY not configured");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    if (!GROQ_API_KEY) {
+      console.error("GROQ_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "Configuration IA manquante" }),
+        JSON.stringify({ error: "Configuration IA manquante (Groq)" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Improving article based on virality analysis");
+    console.log("Improving article with Groq based on virality analysis");
 
     const articleContent = `
 ARTICLE ACTUEL:
@@ -137,14 +119,14 @@ ${viralityAnalysis.recommendations.map((r: { priority: string; text: string; imp
 ).join("\n")}
 `;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "llama3-70b-8192",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -153,56 +135,53 @@ ${viralityAnalysis.recommendations.map((r: { priority: string; text: string; imp
 
 ${articleContent}
 
-${analysisContent}`
+${analysisContent}
+
+IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ou après.`
           }
         ],
-        tools: [improvedArticleTool],
-        tool_choice: { type: "function", function: { name: "return_improved_article" } },
         temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("Groq API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Limite de requêtes atteinte" }),
+          JSON.stringify({ error: "Limite de requêtes Groq atteinte" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
       return new Response(
-        JSON.stringify({ error: "Erreur du service IA" }),
+        JSON.stringify({ error: "Erreur du service IA Groq" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
-    
-    // Extract from tool call
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall || toolCall.function.name !== "return_improved_article") {
-      console.error("No tool call in response:", JSON.stringify(data));
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      console.error("No content in Groq response");
       return new Response(
-        JSON.stringify({ error: "Format de réponse IA inattendu" }),
+        JSON.stringify({ error: "Réponse IA vide" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    let improvedArticle;
-    try {
-      improvedArticle = JSON.parse(toolCall.function.arguments);
-    } catch (parseError) {
-      console.error("JSON parse error:", parseError, "Arguments:", toolCall.function.arguments);
+    const improvedArticle = extractJSON(content);
+    if (!improvedArticle) {
+      console.error("Failed to parse improved article JSON:", content);
       return new Response(
         JSON.stringify({ error: "Erreur de parsing de la réponse IA" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Article improved successfully");
+    console.log("Article improved successfully with Groq");
 
     return new Response(
       JSON.stringify({ success: true, article: improvedArticle }),
