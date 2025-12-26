@@ -107,13 +107,13 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY not configured");
+    if (!GROQ_API_KEY) {
+      console.error("GROQ_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "Configuration IA manquante" }),
+        JSON.stringify({ error: "Configuration IA manquante (Groq)" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -133,8 +133,8 @@ serve(async (req) => {
       newsContext = "Pas d'actualités récentes disponibles. Utilise tes connaissances sur les tendances BIM au Benelux.";
     }
 
-    // Step 2: Generate topic suggestions based on real news
-    console.log("Generating topic suggestions with Lovable AI...");
+    // Step 2: Generate topic suggestions with Groq
+    console.log("Generating topic suggestions with Groq...");
 
     const userPrompt = `Voici les actualités BIM récentes trouvées pour le Luxembourg et la Belgique:
 
@@ -152,14 +152,14 @@ Chaque sujet doit:
 
 Réponds UNIQUEMENT avec un tableau JSON contenant 5 objets avec les champs: topic, angle, relevance, keywords (tableau), source (URL si disponible, sinon null).`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "llama3-70b-8192",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -170,23 +170,17 @@ Réponds UNIQUEMENT avec un tableau JSON contenant 5 objets avec les champs: top
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("Groq API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Limite de requêtes atteinte. Réessayez dans quelques instants." }),
+          JSON.stringify({ error: "Limite de requêtes Groq atteinte. Réessayez dans quelques instants." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Crédits IA insuffisants. Veuillez recharger votre compte." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
       return new Response(
-        JSON.stringify({ error: "Erreur du service IA" }),
+        JSON.stringify({ error: "Erreur du service IA Groq" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -195,7 +189,7 @@ Réponds UNIQUEMENT avec un tableau JSON contenant 5 objets avec les champs: top
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      console.error("No content in AI response");
+      console.error("No content in Groq response");
       return new Response(
         JSON.stringify({ error: "Réponse IA vide" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -216,7 +210,7 @@ Réponds UNIQUEMENT avec un tableau JSON contenant 5 objets avec les champs: top
       );
     }
 
-    console.log("Topic suggestions generated successfully with real news context");
+    console.log("Topic suggestions generated successfully with Groq");
     return new Response(
       JSON.stringify({ 
         success: true, 
